@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: fitnessflow-db
+    environment:
+      POSTGRES_USER: fitness_user
+      POSTGRES_PASSWORD: fitness_pass
+      POSTGRES_DB: fitnessflow_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: "postgresql://fitness_user:fitness_pass@postgres:5432/fitnessflow_db"
+      JWT_SECRET: "your-super-secret-jwt-key-change-it"
+
+volumes:
+  postgres_data:

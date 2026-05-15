@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(uuid())
+  fullName        String           @map("full_name")
+  email           String           @unique
+  passwordHash    String           @map("password_hash")
+  role            String           @default("client")
+  weight          Float?
+  height          Int?
+  goal            String?
+  createdAt       DateTime         @default(now()) @map("created_at")
+  
+  userMemberships UserMembership[]
+  bookings        Booking[]
+  progressRecords Progress[]
+  
+  @@map("users")
+}
+
+model Membership {
+  id              String           @id @default(uuid())
+  name            String
+  price           Float            // Убрал @db.Decimal
+  durationDays    Int              @map("duration_days")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  
+  userMemberships UserMembership[]
+  
+  @@map("memberships")
+}
+
+model UserMembership {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  membershipId String    @map("membership_id")
+  startDate    DateTime  @default(now()) @map("start_date")
+  endDate      DateTime  @map("end_date")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  
+  user         User      @relation(fields: [userId], references: [id])
+  membership   Membership @relation(fields: [membershipId], references: [id])
+  
+  @@map("user_memberships")
+}
+
+model Training {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  trainer     String
+  date        DateTime
+  time        String
+  duration    Int
+  capacity    Int
+  level       String
+  createdAt   DateTime  @default(now()) @map("created_at")
+  
+  bookings    Booking[]
+  
+  @@map("trainings")
+}
+
+model Booking {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  trainingId String   @map("training_id")
+  status     String   @default("booked")
+  bookedAt   DateTime @default(now()) @map("booked_at")
+  
+  user       User     @relation(fields: [userId], references: [id])
+  training   Training @relation(fields: [trainingId], references: [id])
+  
+  @@unique([userId, trainingId])
+  @@map("bookings")
+}
+
+model Progress {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  date       DateTime @default(now())
+  weight     Float?
+  bodyFat    Float?   @map("body_fat")
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  
+  user       User     @relation(fields: [userId], references: [id])
+  
+  @@map("progress")
+}
