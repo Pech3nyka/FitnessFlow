@@ -6,8 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "npm install && npx prisma generate",
-    "postinstall": "npx prisma generate"
+    "build": "npm install && npx prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
@@ -21,6 +20,6 @@
     "prisma": "^5.0.0"
   },
   "prisma": {
-  "seed": "node prisma/seed.js"
-}
+    "seed": "node prisma/seed.js"
+  }
 }
