@@ -341,6 +341,51 @@ app.delete('/api/trainings/:id', authenticateToken, requireAdmin, async (req, re
   }
 });
 
+// Отмена записи на тренировку
+app.delete('/api/bookings/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Проверка записи пользователя
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: id,
+        userId: req.user.userId
+      }
+    });
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
+    
+    await prisma.booking.delete({
+      where: { id: id }
+    });
+    
+    res.json({ message: 'Запись успешно отменена' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при отмене записи' });
+  }
+});
+
+// Получение одной тренировки по ID
+app.get('/api/trainings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const training = await prisma.training.findUnique({
+      where: { id }
+    });
+    if (!training) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+    res.json(training);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении тренировки' });
+  }
+});
+
 // Запуск сервера
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
@@ -348,8 +393,10 @@ app.listen(PORT, () => {
   console.log(`   POST   /api/register`);
   console.log(`   POST   /api/login`);
   console.log(`   GET    /api/trainings`);
+  console.log(`   GET    /api/trainings/:id`);
   console.log(`   POST   /api/bookings`);
   console.log(`   GET    /api/bookings`);
+  console.log(`   DELETE /api/bookings/:id`);
   console.log(`   GET    /api/user`);
   console.log(`   PUT    /api/user`);
   console.log(`   GET    /api/progress`);

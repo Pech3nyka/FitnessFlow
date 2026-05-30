@@ -100,6 +100,7 @@ export default function DashboardPage() {
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <Link href="/schedule" className="btn btn-primary">Расписание</Link>
             <Link href="/progress" className="btn btn-primary">Мой прогресс</Link>
+            <Link href="/my-bookings" className="btn btn-primary">Мои записи</Link>
             {user?.role === 'admin' && (
               <Link href="/admin" className="btn btn-primary">Админ-панель</Link>
             )}
