@@ -16,4 +16,4 @@ RUN npx prisma generate
 
 EXPOSE 5000
 
-CMD npm run migrate && npm start
+CMD npx prisma migrate deploy && npm start
