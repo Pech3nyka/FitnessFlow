@@ -1,7 +1,15 @@
-FROM node:18-alpine
+FROM node:18-slim
+
 WORKDIR /app
+
 COPY package*.json ./
-RUN npm ci --only=production
+
+RUN npm install
+
 COPY . .
+
+RUN npx prisma generate
+
 EXPOSE 5000
+
 CMD ["npm", "start"]
