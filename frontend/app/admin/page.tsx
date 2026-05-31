@@ -54,7 +54,7 @@ export default function AdminPage() {
     durationDays: 30
   });
 
-  // Проверка прав администратора
+  //                                                !!ПРОВЕРКА ПРАВ АДМИНИСТРАТОРА!!
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
@@ -75,7 +75,7 @@ export default function AdminPage() {
     loadMemberships();
   }, []);
 
-  // Загрузка списка тренировок
+  //                                                !!ЗАГРУЗКА ДАННЫХ!!
   const loadTrainings = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/trainings');
@@ -88,7 +88,6 @@ export default function AdminPage() {
     }
   };
 
-  // Загрузка списка абонементов
   const loadMemberships = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/memberships');
@@ -99,7 +98,7 @@ export default function AdminPage() {
     }
   };
 
-  // Обработка изменения полей формы тренировки
+  //                                                !!ОБРАБОТЧИКИ ФОРМ!!
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -107,7 +106,6 @@ export default function AdminPage() {
     });
   };
 
-  // Обработка изменения полей формы абонемента
   const handleMembershipInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMembershipForm({
       ...membershipForm,
@@ -115,7 +113,7 @@ export default function AdminPage() {
     });
   };
 
-  // Создание тренировки
+  //                                                !!СОЗДАНИЕ ТРЕНИРОВКИ!!
   const handleCreateTraining = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -172,7 +170,7 @@ export default function AdminPage() {
     }
   };
 
-  // Создание абонемента
+  //                                                !!СОЗДАНИЕ АБОНЕМЕНТА!!
   const handleCreateMembership = async (e: React.FormEvent) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -191,8 +189,8 @@ export default function AdminPage() {
         },
         body: JSON.stringify({
           name: membershipForm.name,
-          price: parseFloat(membershipForm.price),
-          durationDays: membershipForm.durationDays
+          price: Number(membershipForm.price),
+          durationDays: Number(membershipForm.durationDays)
         })
       });
 
@@ -213,7 +211,7 @@ export default function AdminPage() {
     }
   };
 
-  // Удаление тренировки
+  //                                                !!УДАЛЕНИЕ ТРЕНИРОВКИ!!
   const handleDeleteTraining = async (id: string, name: string) => {
     if (!confirm(`Удалить тренировку "${name}"? Все записи на неё также будут удалены.`)) return;
     
@@ -241,6 +239,35 @@ export default function AdminPage() {
     }
   };
 
+  //                                                !!УДАЛЕНИЕ АБОНЕМЕНТА!!
+  const handleDeleteMembership = async (id: string, name: string) => {
+    if (!confirm(`Удалить абонемент "${name}"? Все связанные записи у пользователей также будут удалены.`)) return;
+
+    const token = localStorage.getItem('token');
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/memberships/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Ошибка при удалении');
+      }
+
+      setMessage({ text: '✅ Абонемент удалён', type: 'success' });
+      loadMemberships();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      setMessage({ text: `❌ ${err.message}`, type: 'error' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  //                                                !!ОТОБРАЖЕНИЕ!!
   if (!isAdmin || loading) {
     return (
       <div className="container">
@@ -280,7 +307,6 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Форма добавления тренировки */}
           {showForm && (
             <div className="card" style={{ backgroundColor: '#f8f9fa', marginBottom: '20px', marginTop: '16px' }}>
               <h3>➕ Новая тренировка</h3>
@@ -289,12 +315,10 @@ export default function AdminPage() {
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Название *</label>
                   <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="input" required />
                 </div>
-                
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Описание</label>
                   <textarea name="description" value={formData.description} onChange={handleInputChange} className="input" rows={3} />
                 </div>
-                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Тренер *</label>
@@ -310,7 +334,6 @@ export default function AdminPage() {
                     </select>
                   </div>
                 </div>
-                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Дата *</label>
@@ -321,7 +344,6 @@ export default function AdminPage() {
                     <input type="time" name="time" value={formData.time} onChange={handleInputChange} className="input" required />
                   </div>
                 </div>
-                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                   <div>
                     <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Длительность (мин)</label>
@@ -332,7 +354,6 @@ export default function AdminPage() {
                     <input type="number" name="capacity" value={formData.capacity} onChange={handleInputChange} className="input" min={1} max={50} />
                   </div>
                 </div>
-                
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', backgroundColor: '#22c55e' }}>
                   Создать тренировку
                 </button>
@@ -340,7 +361,6 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Список тренировок */}
           <h3>📋 Список тренировок</h3>
           {trainings.length === 0 ? (
             <p>Нет тренировок. Добавьте первую!</p>
@@ -354,15 +374,9 @@ export default function AdminPage() {
                     <p><strong>📅 Дата:</strong> {new Date(training.date).toLocaleDateString()} в {training.time}</p>
                     <p><strong>⏱️ Длительность:</strong> {training.duration} мин | <strong>📊 Уровень:</strong> {training.level}</p>
                     <p><strong>🪑 Вместимость:</strong> {training.capacity} мест</p>
-                    {training.description && (
-                      <p><strong>📝 Описание:</strong> {training.description}</p>
-                    )}
+                    {training.description && <p><strong>📝 Описание:</strong> {training.description}</p>}
                   </div>
-                  <button 
-                    onClick={() => handleDeleteTraining(training.id, training.name)}
-                    className="btn btn-secondary"
-                    style={{ backgroundColor: '#dc2626', color: 'white', padding: '8px 16px' }}
-                  >
+                  <button onClick={() => handleDeleteTraining(training.id, training.name)} className="btn btn-secondary" style={{ backgroundColor: '#dc2626', color: 'white', padding: '8px 16px' }}>
                     🗑️ Удалить
                   </button>
                 </div>
@@ -375,16 +389,11 @@ export default function AdminPage() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h2>🎫 Управление абонементами</h2>
-            <button 
-              onClick={() => setShowMembershipForm(!showMembershipForm)} 
-              className="btn btn-primary"
-              style={{ backgroundColor: '#22c55e' }}
-            >
+            <button onClick={() => setShowMembershipForm(!showMembershipForm)} className="btn btn-primary" style={{ backgroundColor: '#22c55e' }}>
               {showMembershipForm ? '❌ Отменить' : '+ Добавить абонемент'}
             </button>
           </div>
 
-          {/* Форма добавления абонемента */}
           {showMembershipForm && (
             <div className="card" style={{ backgroundColor: '#f8f9fa', marginBottom: '20px', marginTop: '16px' }}>
               <h3>➕ Новый абонемент</h3>
@@ -393,17 +402,14 @@ export default function AdminPage() {
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Название *</label>
                   <input type="text" name="name" value={membershipForm.name} onChange={handleMembershipInputChange} className="input" required />
                 </div>
-                
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Цена (руб) *</label>
                   <input type="number" step="100" name="price" value={membershipForm.price} onChange={handleMembershipInputChange} className="input" required />
                 </div>
-                
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Срок действия (дней) *</label>
                   <input type="number" name="durationDays" value={membershipForm.durationDays} onChange={handleMembershipInputChange} className="input" min={1} max={365} required />
                 </div>
-                
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', backgroundColor: '#22c55e' }}>
                   Создать абонемент
                 </button>
@@ -411,7 +417,6 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Список абонементов */}
           <h3>📋 Список абонементов</h3>
           {memberships.length === 0 ? (
             <p>Нет абонементов. Добавьте первый!</p>
@@ -424,6 +429,9 @@ export default function AdminPage() {
                     💰 {membership.price} руб | 📅 {membership.durationDays} дней
                   </p>
                 </div>
+                <button onClick={() => handleDeleteMembership(membership.id, membership.name)} className="btn btn-secondary" style={{ backgroundColor: '#dc2626', color: 'white', padding: '6px 12px' }}>
+                  🗑️ Удалить
+                </button>
               </div>
             ))
           )}
