@@ -378,6 +378,34 @@ app.post('/api/progress', authenticateToken, async (req, res) => {
   }
 });
 
+// Удаление записи прогресса
+app.delete('/api/progress/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Проверяем, что запись принадлежит текущему пользователю
+    const progress = await prisma.progress.findFirst({
+      where: {
+        id: id,
+        userId: req.user.userId
+      }
+    });
+    
+    if (!progress) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
+    
+    await prisma.progress.delete({
+      where: { id: id }
+    });
+    
+    res.json({ message: 'Запись удалена' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при удалении записи' });
+  }
+});
+
 //                                                     !!АБОНЕМЕНТЫ!!
 // Получение всех абонементов
 app.get('/api/memberships', async (req, res) => {
@@ -407,6 +435,28 @@ app.post('/api/memberships', authenticateToken, requireAdmin, async (req, res) =
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Ошибка при создании абонемента' });
+  }
+});
+
+// Удаление абонемента (только админ)
+app.delete('/api/memberships/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Удаление покупок абонемента
+    await prisma.userMembership.deleteMany({
+      where: { membershipId: id }
+    });
+    
+    // Удаление этого абонемента
+    await prisma.membership.delete({
+      where: { id }
+    });
+    
+    res.json({ message: 'Абонемент удалён' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при удалении абонемента' });
   }
 });
 
