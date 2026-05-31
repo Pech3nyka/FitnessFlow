@@ -109,6 +109,7 @@ export default function DashboardPage() {
         <div className="card">
           <h2>Навигация</h2>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <Link href="/memberships" className="btn btn-primary">🎫 Абонементы</Link>
             <Link href="/schedule" className="btn btn-primary">📅 Расписание</Link>
             <Link href="/progress" className="btn btn-primary">📊 Мой прогресс</Link>
             <Link href="/my-bookings" className="btn btn-primary">📋 Мои записи</Link>

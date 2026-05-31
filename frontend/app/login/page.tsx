@@ -1,48 +1,59 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
     try {
+      // 1. Вход в систему
       const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
-      })
+      });
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Ошибка при входе')
+        throw new Error(data.error || 'Ошибка при входе');
       }
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      // 2. Сохраняем токен
+      localStorage.setItem('token', data.token);
+      
+      // 3. Загружаем ПОЛНЫЕ данные пользователя (с весом, ростом, целью)
+      const userRes = await fetch('http://localhost:5000/api/user', {
+        headers: { 'Authorization': `Bearer ${data.token}` }
+      });
+      const fullUserData = await userRes.json();
+      localStorage.setItem('user', JSON.stringify(fullUserData));
+      
+      console.log('Сохранён пользователь:', fullUserData);
 
-      if (data.user.role === 'admin') {
-        router.push('/admin')
+      // 4. Перенаправление
+      if (fullUserData.role === 'admin') {
+        router.push('/admin');
       } else {
-        router.push('/dashboard')
+        router.push('/dashboard');
       }
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container">
@@ -86,5 +97,5 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

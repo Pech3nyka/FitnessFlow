@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// !!MIDDLEWARE!!
+//                                                     !!MIDDLEWARE!!
 app.use(cors());
 app.use(express.json());
 
@@ -36,7 +36,7 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-// !!АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ!!
+//                                                     !!АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ!!
 // Регистрация
 app.post('/api/register', async (req, res) => {
   try {
@@ -108,8 +108,10 @@ app.get('/api/user', authenticateToken, async (req, res) => {
       where: { id: req.user.userId },
       include: {
         userMemberships: {
-          where: { isActive: true },
-          include: { membership: true }
+          where: { isActive: true, endDate: { gt: new Date() } }, // только активные и не просроченные
+          include: { membership: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1
         }
       }
     });
@@ -133,7 +135,12 @@ app.put('/api/user', authenticateToken, async (req, res) => {
     
     const user = await prisma.user.update({
       where: { id: req.user.userId },
-      data: { fullName, weight, height, goal }
+      data: { 
+        fullName, 
+        weight: weight ? parseFloat(weight) : null, 
+        height: height ? parseInt(height) : null, 
+        goal 
+      }
     });
     
     const { passwordHash, ...userWithoutPassword } = user;
@@ -144,7 +151,7 @@ app.put('/api/user', authenticateToken, async (req, res) => {
   }
 });
 
-// !!ТРЕНИРОВКИ!!
+//                                                     !!ТРЕНИРОВКИ!!
 // Получение расписания
 app.get('/api/trainings', async (req, res) => {
   try {
@@ -237,7 +244,7 @@ app.delete('/api/trainings/:id', authenticateToken, requireAdmin, async (req, re
   }
 });
 
-// !!ЗАПИСИ НА ТРЕНИРОВКИ!!
+//                                                     !!ЗАПИСИ НА ТРЕНИРОВКИ!!
 // Запись на тренировку
 app.post('/api/bookings', authenticateToken, async (req, res) => {
   try {
@@ -334,7 +341,7 @@ app.delete('/api/bookings/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// !!ПРОГРЕСС ПОЛЬЗОВАТЕЛЯ!!
+//                                                     !!ПРОГРЕСС ПОЛЬЗОВАТЕЛЯ!!
 // Получение прогресса
 app.get('/api/progress', authenticateToken, async (req, res) => {
   try {
@@ -371,7 +378,7 @@ app.post('/api/progress', authenticateToken, async (req, res) => {
   }
 });
 
-// !!АБОНЕМЕНТЫ!!
+//                                                     !!АБОНЕМЕНТЫ!!
 // Получение всех абонементов
 app.get('/api/memberships', async (req, res) => {
   try {
@@ -403,7 +410,7 @@ app.post('/api/memberships', authenticateToken, requireAdmin, async (req, res) =
   }
 });
 
-// !!АДМИНИСТРИРОВАНИЕ!!
+//                                                     !!АДМИНИСТРИРОВАНИЕ!!
 // Получение всех пользователей (только админ)
 app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -423,7 +430,69 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) =>
   }
 });
 
-// !!ЗАПУСК СЕРВЕРА!!
+//                                                    !!ПОКУПКА АБОНЕМЕНТА!!
+// Покупка абонемента пользователем
+app.post('/api/user/memberships', authenticateToken, async (req, res) => {
+  try {
+    const { membershipId } = req.body;
+    const userId = req.user.userId;
+
+    // Информация об абонементе
+    const membership = await prisma.membership.findUnique({
+      where: { id: membershipId }
+    });
+
+    if (!membership) {
+      return res.status(404).json({ error: 'Абонемент не найден' });
+    }
+
+    // Рассчёт даты окончания
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + membership.durationDays);
+
+    // Создание записи о покупке
+    const userMembership = await prisma.userMembership.create({
+      data: {
+        userId: userId,
+        membershipId: membershipId,
+        startDate: startDate,
+        endDate: endDate,
+        isActive: true
+      },
+      include: {
+        membership: true
+      }
+    });
+
+    res.status(201).json({ message: 'Абонемент успешно приобретён', userMembership });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при покупке абонемента' });
+  }
+});
+
+// Получение активного абонемента пользователя
+app.get('/api/user/memberships/active', authenticateToken, async (req, res) => {
+  try {
+    const userMembership = await prisma.userMembership.findFirst({
+      where: {
+        userId: req.user.userId,
+        isActive: true,
+        endDate: { gt: new Date() }
+      },
+      include: {
+        membership: true
+      }
+    });
+    res.json(userMembership);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении абонемента' });
+  }
+});
+
+//                                                     !!ЗАПУСК СЕРВЕРА!!
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
   console.log(`📋 Доступные эндпоинты:`);

@@ -23,6 +23,19 @@ export default function EditProfilePage() {
       return;
     }
 
+    // Получение данных пользователя из localStorage или с сервера
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      const user = JSON.parse(userData);
+      setFormData({
+        fullName: user.fullName || '',
+        weight: user.weight || '',
+        height: user.height || '',
+        goal: user.goal || ''
+      });
+    }
+
+    // Загрузка данных с сервера
     fetch('http://localhost:5000/api/user', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -64,16 +77,19 @@ export default function EditProfilePage() {
 
       if (!res.ok) throw new Error('Ошибка при сохранении');
 
-      setMessage({ text: '✅ Профиль обновлён!', type: 'success' });
-      setTimeout(() => setMessage(null), 3000);
-      
-      // Обновляем данные в localStorage
+      // Обновляемые данные в localStorage
       const userRes = await fetch('http://localhost:5000/api/user', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const userData = await userRes.json();
       localStorage.setItem('user', JSON.stringify(userData));
+
+      setMessage({ text: '✅ Профиль обновлён!', type: 'success' });
       
+      // Перенаправление в личный кабинет через 1.5 секунды
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 1500);
     } catch (err: any) {
       setMessage({ text: `❌ ${err.message}`, type: 'error' });
       setTimeout(() => setMessage(null), 3000);
