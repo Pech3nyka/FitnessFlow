@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Middleware
+// !!MIDDLEWARE!!
 app.use(cors());
 app.use(express.json());
 
@@ -36,6 +36,7 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// !!АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛИ!!
 // Регистрация
 app.post('/api/register', async (req, res) => {
   try {
@@ -64,7 +65,7 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Авторизация
+// Вход в систему
 app.post('/api/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -100,6 +101,50 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Получение данных пользователя
+app.get('/api/user', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      include: {
+        userMemberships: {
+          where: { isActive: true },
+          include: { membership: true }
+        }
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+    
+    const { passwordHash, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении данных' });
+  }
+});
+
+// Обновление профиля
+app.put('/api/user', authenticateToken, async (req, res) => {
+  try {
+    const { fullName, weight, height, goal } = req.body;
+    
+    const user = await prisma.user.update({
+      where: { id: req.user.userId },
+      data: { fullName, weight, height, goal }
+    });
+    
+    const { passwordHash, ...userWithoutPassword } = user;
+    res.json(userWithoutPassword);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при обновлении профиля' });
+  }
+});
+
+// !!ТРЕНИРОВКИ!!
 // Получение расписания
 app.get('/api/trainings', async (req, res) => {
   try {
@@ -130,6 +175,69 @@ app.get('/api/trainings', async (req, res) => {
   }
 });
 
+// Получение одной тренировки по ID
+app.get('/api/trainings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const training = await prisma.training.findUnique({
+      where: { id }
+    });
+    if (!training) {
+      return res.status(404).json({ error: 'Тренировка не найдена' });
+    }
+    res.json(training);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении тренировки' });
+  }
+});
+
+// Создание тренировки (только админ)
+app.post('/api/trainings', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, description, trainer, date, time, duration, capacity, level } = req.body;
+    
+    const training = await prisma.training.create({
+      data: {
+        name,
+        description,
+        trainer,
+        date: new Date(date),
+        time,
+        duration,
+        capacity,
+        level
+      }
+    });
+    
+    res.status(201).json(training);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при создании тренировки' });
+  }
+});
+
+// Удаление тренировки (только админ)
+app.delete('/api/trainings/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await prisma.booking.deleteMany({
+      where: { trainingId: id }
+    });
+    
+    await prisma.training.delete({
+      where: { id }
+    });
+    
+    res.json({ message: 'Тренировка удалена' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при удалении тренировки' });
+  }
+});
+
+// !!ЗАПИСИ НА ТРЕНИРОВКИ!!
 // Запись на тренировку
 app.post('/api/bookings', authenticateToken, async (req, res) => {
   try {
@@ -199,154 +307,11 @@ app.get('/api/bookings', authenticateToken, async (req, res) => {
   }
 });
 
-// Получение данных пользователя
-app.get('/api/user', authenticateToken, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      include: {
-        userMemberships: {
-          where: { isActive: true },
-          include: { membership: true }
-        }
-      }
-    });
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Пользователь не найден' });
-    }
-    
-    const { passwordHash, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении данных' });
-  }
-});
-
-// Обновление профиля
-app.put('/api/user', authenticateToken, async (req, res) => {
-  try {
-    const { fullName, weight, height, goal } = req.body;
-    
-    const user = await prisma.user.update({
-      where: { id: req.user.userId },
-      data: { fullName, weight, height, goal }
-    });
-    
-    const { passwordHash, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при обновлении профиля' });
-  }
-});
-
-// Прогресс пользователя
-app.get('/api/progress', authenticateToken, async (req, res) => {
-  try {
-    const progress = await prisma.progress.findMany({
-      where: { userId: req.user.userId },
-      orderBy: { date: 'asc' }
-    });
-    res.json(progress);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении прогресса' });
-  }
-});
-
-app.post('/api/progress', authenticateToken, async (req, res) => {
-  try {
-    const { date, weight, bodyFat, notes } = req.body;
-    
-    const progress = await prisma.progress.create({
-      data: {
-        userId: req.user.userId,
-        date: date ? new Date(date) : new Date(),
-        weight,
-        bodyFat,
-        notes
-      }
-    });
-    
-    res.status(201).json(progress);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при добавлении записи прогресса' });
-  }
-});
-
-// Админ: получение всех пользователей
-app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        fullName: true,
-        email: true,
-        role: true,
-        createdAt: true
-      }
-    });
-    res.json(users);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении пользователей' });
-  }
-});
-
-// Админ: добавление тренировки
-app.post('/api/trainings', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { name, description, trainer, date, time, duration, capacity, level } = req.body;
-    
-    const training = await prisma.training.create({
-      data: {
-        name,
-        description,
-        trainer,
-        date: new Date(date),
-        time,
-        duration,
-        capacity,
-        level
-      }
-    });
-    
-    res.status(201).json(training);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при создании тренировки' });
-  }
-});
-
-// Админ: удаление тренировки
-app.delete('/api/trainings/:id', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    await prisma.booking.deleteMany({
-      where: { trainingId: id }
-    });
-    
-    await prisma.training.delete({
-      where: { id }
-    });
-    
-    res.json({ message: 'Тренировка удалена' });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Ошибка при удалении тренировки' });
-  }
-});
-
 // Отмена записи на тренировку
 app.delete('/api/bookings/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Проверка записи пользователя
     const booking = await prisma.booking.findFirst({
       where: {
         id: id,
@@ -369,39 +334,119 @@ app.delete('/api/bookings/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Получение одной тренировки по ID
-app.get('/api/trainings/:id', async (req, res) => {
+// !!ПРОГРЕСС ПОЛЬЗОВАТЕЛЯ!!
+// Получение прогресса
+app.get('/api/progress', authenticateToken, async (req, res) => {
   try {
-    const { id } = req.params;
-    const training = await prisma.training.findUnique({
-      where: { id }
+    const progress = await prisma.progress.findMany({
+      where: { userId: req.user.userId },
+      orderBy: { date: 'asc' }
     });
-    if (!training) {
-      return res.status(404).json({ error: 'Тренировка не найдена' });
-    }
-    res.json(training);
+    res.json(progress);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Ошибка при получении тренировки' });
+    res.status(500).json({ error: 'Ошибка при получении прогресса' });
   }
 });
 
-// Запуск сервера
+// Добавление записи прогресса
+app.post('/api/progress', authenticateToken, async (req, res) => {
+  try {
+    const { date, weight, bodyFat, notes } = req.body;
+    
+    const progress = await prisma.progress.create({
+      data: {
+        userId: req.user.userId,
+        date: date ? new Date(date) : new Date(),
+        weight,
+        bodyFat,
+        notes
+      }
+    });
+    
+    res.status(201).json(progress);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при добавлении записи прогресса' });
+  }
+});
+
+// !!АБОНЕМЕНТЫ!!
+// Получение всех абонементов
+app.get('/api/memberships', async (req, res) => {
+  try {
+    const memberships = await prisma.membership.findMany();
+    res.json(memberships);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении абонементов' });
+  }
+});
+
+// Создание абонемента (только админ)
+app.post('/api/memberships', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { name, price, durationDays } = req.body;
+    
+    // Преобразуем строки в числа
+    const membership = await prisma.membership.create({
+      data: { 
+        name, 
+        price: parseFloat(price), 
+        durationDays: parseInt(durationDays) 
+      }
+    });
+    res.status(201).json(membership);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при создании абонемента' });
+  }
+});
+
+// !!АДМИНИСТРИРОВАНИЕ!!
+// Получение всех пользователей (только админ)
+app.get('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        createdAt: true
+      }
+    });
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Ошибка при получении пользователей' });
+  }
+});
+
+// !!ЗАПУСК СЕРВЕРА!!
 app.listen(PORT, () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
   console.log(`📋 Доступные эндпоинты:`);
+  console.log(`\n🔐 Авторизация и пользователи:`);
   console.log(`   POST   /api/register`);
   console.log(`   POST   /api/login`);
+  console.log(`   GET    /api/user`);
+  console.log(`   PUT    /api/user`);
+  console.log(`\n📅 Тренировки:`);
   console.log(`   GET    /api/trainings`);
   console.log(`   GET    /api/trainings/:id`);
+  console.log(`   POST   /api/trainings (admin)`);
+  console.log(`   DELETE /api/trainings/:id (admin)`);
+  console.log(`\n📝 Записи:`);
   console.log(`   POST   /api/bookings`);
   console.log(`   GET    /api/bookings`);
   console.log(`   DELETE /api/bookings/:id`);
-  console.log(`   GET    /api/user`);
-  console.log(`   PUT    /api/user`);
+  console.log(`\n📊 Прогресс:`);
   console.log(`   GET    /api/progress`);
   console.log(`   POST   /api/progress`);
+  console.log(`\n🎫 Абонементы:`);
+  console.log(`   GET    /api/memberships`);
+  console.log(`   POST   /api/memberships (admin)`);
+  console.log(`\n👑 Администрирование:`);
   console.log(`   GET    /api/admin/users`);
-  console.log(`   POST   /api/trainings (admin)`);
-  console.log(`   DELETE /api/trainings/:id (admin)`);
 });

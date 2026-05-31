@@ -49,12 +49,18 @@ export default function DashboardPage() {
   return (
     <div className="container">
       <div style={{ paddingTop: '20px' }}>
+        {/* КАРТОЧКА ПРОФИЛЯ с кнопкой редактирования */}
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
             <h1>Личный кабинет</h1>
-            <button onClick={handleLogout} className="btn btn-secondary">
-              Выйти
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <Link href="/profile/edit" className="btn btn-secondary" style={{ fontSize: '14px' }}>
+                ✏️ Редактировать профиль
+              </Link>
+              <button onClick={handleLogout} className="btn btn-secondary" style={{ backgroundColor: '#dc2626', color: 'white' }}>
+                Выйти
+              </button>
+            </div>
           </div>
           
           {user && (
@@ -62,10 +68,14 @@ export default function DashboardPage() {
               <p><strong>Имя:</strong> {user.fullName}</p>
               <p><strong>Email:</strong> {user.email}</p>
               <p><strong>Роль:</strong> {user.role === 'admin' ? 'Администратор' : 'Клиент'}</p>
+              {user.weight && <p><strong>Вес:</strong> {user.weight} кг</p>}
+              {user.height && <p><strong>Рост:</strong> {user.height} см</p>}
+              {user.goal && <p><strong>Цель:</strong> {user.goal}</p>}
             </div>
           )}
         </div>
 
+        {/* БЛИЖАЙШИЕ ТРЕНИРОВКИ */}
         <div className="card">
           <h2>Ближайшие тренировки</h2>
           {trainings.length === 0 ? (
@@ -95,14 +105,15 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* НАВИГАЦИЯ */}
         <div className="card">
           <h2>Навигация</h2>
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <Link href="/schedule" className="btn btn-primary">Расписание</Link>
-            <Link href="/progress" className="btn btn-primary">Мой прогресс</Link>
-            <Link href="/my-bookings" className="btn btn-primary">Мои записи</Link>
+            <Link href="/schedule" className="btn btn-primary">📅 Расписание</Link>
+            <Link href="/progress" className="btn btn-primary">📊 Мой прогресс</Link>
+            <Link href="/my-bookings" className="btn btn-primary">📋 Мои записи</Link>
             {user?.role === 'admin' && (
-              <Link href="/admin" className="btn btn-primary">Админ-панель</Link>
+              <Link href="/admin" className="btn btn-primary">👑 Админ-панель</Link>
             )}
           </div>
         </div>

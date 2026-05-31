@@ -17,9 +17,18 @@ interface Training {
   createdAt: string;
 }
 
+interface Membership {
+  id: string;
+  name: string;
+  price: number;
+  durationDays: number;
+  createdAt: string;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [trainings, setTrainings] = useState<Training[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -35,6 +44,14 @@ export default function AdminPage() {
     duration: 60,
     capacity: 15,
     level: 'Начинающий'
+  });
+
+  // Форма добавления абонемента
+  const [showMembershipForm, setShowMembershipForm] = useState(false);
+  const [membershipForm, setMembershipForm] = useState({
+    name: '',
+    price: '',
+    durationDays: 30
   });
 
   // Проверка прав администратора
@@ -55,6 +72,7 @@ export default function AdminPage() {
     
     setIsAdmin(true);
     loadTrainings();
+    loadMemberships();
   }, []);
 
   // Загрузка списка тренировок
@@ -70,7 +88,18 @@ export default function AdminPage() {
     }
   };
 
-  // Обработка изменения полей формы
+  // Загрузка списка абонементов
+  const loadMemberships = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/memberships');
+      const data = await res.json();
+      setMemberships(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Обработка изменения полей формы тренировки
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
@@ -78,67 +107,111 @@ export default function AdminPage() {
     });
   };
 
+  // Обработка изменения полей формы абонемента
+  const handleMembershipInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMembershipForm({
+      ...membershipForm,
+      [e.target.name]: e.target.value
+    });
+  };
+
   // Создание тренировки
   const handleCreateTraining = async (e: React.FormEvent) => {
-  e.preventDefault();
-  const token = localStorage.getItem('token');
-  
-  if (!token) {
-    setMessage({ text: '❌ Не авторизован. Войдите заново.', type: 'error' });
-    return;
-  }
-  
-  // Подготовка данных
-  const trainingData = {
-    name: formData.name,
-    description: formData.description || '',
-    trainer: formData.trainer,
-    date: formData.date,
-    time: formData.time,
-    duration: Number(formData.duration),
-    capacity: Number(formData.capacity),
-    level: formData.level
-  };
-  
-  console.log('Отправка:', trainingData);
-  
-  try {
-    const res = await fetch('http://localhost:5000/api/trainings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(trainingData)
-    });
-
-    const responseData = await res.json();
-    console.log('Ответ:', responseData);
-
-    if (!res.ok) {
-      throw new Error(responseData.error || 'Ошибка при создании');
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      setMessage({ text: '❌ Не авторизован. Войдите заново.', type: 'error' });
+      return;
     }
+    
+    const trainingData = {
+      name: formData.name,
+      description: formData.description || '',
+      trainer: formData.trainer,
+      date: formData.date,
+      time: formData.time,
+      duration: Number(formData.duration),
+      capacity: Number(formData.capacity),
+      level: formData.level
+    };
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/trainings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(trainingData)
+      });
 
-    setMessage({ text: '✅ Тренировка успешно создана!', type: 'success' });
-    setShowForm(false);
-    setFormData({
-      name: '',
-      description: '',
-      trainer: '',
-      date: '',
-      time: '',
-      duration: 60,
-      capacity: 15,
-      level: 'Начинающий'
-    });
-    loadTrainings(); // Обновляем список
-    setTimeout(() => setMessage(null), 3000);
-  } catch (err: any) {
-    console.error('Ошибка:', err);
-    setMessage({ text: `❌ ${err.message}`, type: 'error' });
-    setTimeout(() => setMessage(null), 3000);
-  }
-};
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.error || 'Ошибка при создании');
+      }
+
+      setMessage({ text: '✅ Тренировка успешно создана!', type: 'success' });
+      setShowForm(false);
+      setFormData({
+        name: '',
+        description: '',
+        trainer: '',
+        date: '',
+        time: '',
+        duration: 60,
+        capacity: 15,
+        level: 'Начинающий'
+      });
+      loadTrainings();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      setMessage({ text: `❌ ${err.message}`, type: 'error' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
+
+  // Создание абонемента
+  const handleCreateMembership = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      setMessage({ text: '❌ Не авторизован.', type: 'error' });
+      return;
+    }
+    
+    try {
+      const res = await fetch('http://localhost:5000/api/memberships', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: membershipForm.name,
+          price: parseFloat(membershipForm.price),
+          durationDays: membershipForm.durationDays
+        })
+      });
+
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.error || 'Ошибка при создании');
+      }
+
+      setMessage({ text: '✅ Абонемент успешно создан!', type: 'success' });
+      setShowMembershipForm(false);
+      setMembershipForm({ name: '', price: '', durationDays: 30 });
+      loadMemberships();
+      setTimeout(() => setMessage(null), 3000);
+    } catch (err: any) {
+      setMessage({ text: `❌ ${err.message}`, type: 'error' });
+      setTimeout(() => setMessage(null), 3000);
+    }
+  };
 
   // Удаление тренировки
   const handleDeleteTraining = async (id: string, name: string) => {
@@ -182,18 +255,9 @@ export default function AdminPage() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
             <h1>👑 Админ-панель</h1>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                onClick={() => setShowForm(!showForm)} 
-                className="btn btn-primary"
-                style={{ backgroundColor: '#22c55e' }}
-              >
-                {showForm ? '❌ Отменить' : '+ Добавить тренировку'}
-              </button>
-              <Link href="/dashboard" className="btn btn-secondary">
-                ← Назад в профиль
-              </Link>
-            </div>
+            <Link href="/dashboard" className="btn btn-secondary">
+              ← Назад в профиль
+            </Link>
           </div>
 
           {message && (
@@ -201,11 +265,25 @@ export default function AdminPage() {
               {message.text}
             </div>
           )}
+        </div>
+
+        {/* УПРАВЛЕНИЕ ТРЕНИРОВКАМИ */}
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <h2>📅 Управление тренировками</h2>
+            <button 
+              onClick={() => setShowForm(!showForm)} 
+              className="btn btn-primary"
+              style={{ backgroundColor: '#22c55e' }}
+            >
+              {showForm ? '❌ Отменить' : '+ Добавить тренировку'}
+            </button>
+          </div>
 
           {/* Форма добавления тренировки */}
           {showForm && (
-            <div className="card" style={{ backgroundColor: '#f8f9fa', marginBottom: '20px' }}>
-              <h2>➕ Новая тренировка</h2>
+            <div className="card" style={{ backgroundColor: '#f8f9fa', marginBottom: '20px', marginTop: '16px' }}>
+              <h3>➕ Новая тренировка</h3>
               <form onSubmit={handleCreateTraining}>
                 <div style={{ marginBottom: '12px' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Название *</label>
@@ -263,12 +341,12 @@ export default function AdminPage() {
           )}
 
           {/* Список тренировок */}
-          <h2>📋 Список тренировок</h2>
+          <h3>📋 Список тренировок</h3>
           {trainings.length === 0 ? (
             <p>Нет тренировок. Добавьте первую!</p>
           ) : (
             trainings.map((training) => (
-              <div key={training.id} className="card" style={{ marginBottom: '16px' }}>
+              <div key={training.id} className="card" style={{ marginBottom: '16px', backgroundColor: '#f9f9f9' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
                     <h3>{training.name}</h3>
@@ -287,6 +365,64 @@ export default function AdminPage() {
                   >
                     🗑️ Удалить
                   </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* УПРАВЛЕНИЕ АБОНЕМЕНТАМИ */}
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <h2>🎫 Управление абонементами</h2>
+            <button 
+              onClick={() => setShowMembershipForm(!showMembershipForm)} 
+              className="btn btn-primary"
+              style={{ backgroundColor: '#22c55e' }}
+            >
+              {showMembershipForm ? '❌ Отменить' : '+ Добавить абонемент'}
+            </button>
+          </div>
+
+          {/* Форма добавления абонемента */}
+          {showMembershipForm && (
+            <div className="card" style={{ backgroundColor: '#f8f9fa', marginBottom: '20px', marginTop: '16px' }}>
+              <h3>➕ Новый абонемент</h3>
+              <form onSubmit={handleCreateMembership}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Название *</label>
+                  <input type="text" name="name" value={membershipForm.name} onChange={handleMembershipInputChange} className="input" required />
+                </div>
+                
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Цена (руб) *</label>
+                  <input type="number" step="100" name="price" value={membershipForm.price} onChange={handleMembershipInputChange} className="input" required />
+                </div>
+                
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Срок действия (дней) *</label>
+                  <input type="number" name="durationDays" value={membershipForm.durationDays} onChange={handleMembershipInputChange} className="input" min={1} max={365} required />
+                </div>
+                
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', backgroundColor: '#22c55e' }}>
+                  Создать абонемент
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Список абонементов */}
+          <h3>📋 Список абонементов</h3>
+          {memberships.length === 0 ? (
+            <p>Нет абонементов. Добавьте первый!</p>
+          ) : (
+            memberships.map((membership) => (
+              <div key={membership.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <strong>{membership.name}</strong>
+                  <p style={{ margin: '5px 0', fontSize: '14px', color: '#666' }}>
+                    💰 {membership.price} руб | 📅 {membership.durationDays} дней
+                  </p>
                 </div>
               </div>
             ))
